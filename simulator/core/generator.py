@@ -7,11 +7,14 @@ from .models import (
     RegisterReading, GroupSummary, PlcPayload
 )
 
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-def clamp(value: int, min_value: int, max_value: int) -> int:
+
+def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(max_value, value))
+
 
 def worst_state(states: List[RegisterState]) -> RegisterState:
     order = {
@@ -23,6 +26,7 @@ def worst_state(states: List[RegisterState]) -> RegisterState:
     }
     return max(states, key=lambda s: order[s])
 
+
 def state_to_severity(state: RegisterState) -> Severity:
     if state in (RegisterState.LOW_LOW, RegisterState.HIGH_HIGH):
         return Severity.ALARM
@@ -30,7 +34,8 @@ def state_to_severity(state: RegisterState) -> Severity:
         return Severity.WARNING
     return Severity.INFO
 
-def classify_value(value: int, thresholds: Thresholds) -> Tuple[RegisterState, Severity, bool, bool]:
+
+def classify_value(value: float, thresholds: Thresholds) -> Tuple[RegisterState, Severity, bool, bool]:
     if value <= thresholds.low_low:
         state = RegisterState.LOW_LOW
     elif value < thresholds.low:
@@ -47,32 +52,39 @@ def classify_value(value: int, thresholds: Thresholds) -> Tuple[RegisterState, S
     is_suspicious = state in (RegisterState.LOW, RegisterState.HIGH)
     return state, severity, is_alarm, is_suspicious
 
-def initialize_state(register_specs: Dict[str, RegisterSpec], rng: random.Random) -> Dict[str, int]:
+
+def initialize_state(register_specs: Dict[str, RegisterSpec], rng: random.Random) -> Dict[str, float]:
     state = {}
     for reg, spec in register_specs.items():
-        mid = (spec.normal_min + spec.normal_max) // 2
-        jitter = rng.randint(-spec.max_step, spec.max_step)
+        mid = (spec.normal_min + spec.normal_max) / 2
+        jitter = rng.uniform(-spec.max_step, spec.max_step)
         state[reg] = clamp(mid + jitter, spec.normal_min, spec.normal_max)
     return state
 
-def make_spike(spec: RegisterSpec, rng: random.Random) -> int:
+
+def make_spike(spec: RegisterSpec, rng: random.Random) -> float:
     normal_span = spec.normal_max - spec.normal_min
-    extra = max(spec.max_step * 3, int(normal_span * rng.uniform(0.15, 0.35)))
+    extra = max(spec.max_step * 3, normal_span * rng.uniform(0.15, 0.35))
     if rng.random() < 0.5:
         return spec.thresholds.low_low - extra
     return spec.thresholds.high_high + extra
 
-def next_value(current_value: int, spec: RegisterSpec, rng: random.Random) -> int:
+
+def next_value(current_value: float, spec: RegisterSpec, rng: random.Random) -> float:
     is_anomaly = rng.random() < spec.anomaly_probability
     if is_anomaly:
         return make_spike(spec, rng)
-    step = rng.randint(-spec.max_step, spec.max_step)
+    step = rng.uniform(-spec.max_step, spec.max_step)
     return clamp(current_value + step, spec.normal_min, spec.normal_max)
 
-def build_register_readings(register_values: Dict[str, int], register_specs: Dict[str, RegisterSpec]) -> Dict[str, RegisterReading]:
+
+def build_register_readings(
+    register_values: Dict[str, float],
+    register_specs: Dict[str, RegisterSpec],
+) -> Dict[str, RegisterReading]:
     result: Dict[str, RegisterReading] = {}
     for reg in sorted(register_values.keys(), key=lambda x: int(x[1:])):
-        value = register_values[reg]
+        value = round(register_values[reg], 2)
         spec = register_specs[reg]
         state, severity, is_alarm, is_suspicious = classify_value(value, spec.thresholds)
         result[reg] = RegisterReading(
@@ -84,6 +96,7 @@ def build_register_readings(register_values: Dict[str, int], register_specs: Dic
             group=spec.group,
         )
     return result
+
 
 def build_group_summary(registers: Dict[str, RegisterReading]) -> Dict[str, GroupSummary]:
     grouped: Dict[str, List[Tuple[str, RegisterReading]]] = {}
@@ -99,9 +112,9 @@ def build_group_summary(registers: Dict[str, RegisterReading]) -> Dict[str, Grou
             RegisterState.HIGH.value: 0,
             RegisterState.HIGH_HIGH.value: 0,
         }
-        alarms =[]
-        suspicious = []
-        states_for_group: List[RegisterState] =[]
+        alarms: List[str] = []
+        suspicious: List[str] = []
+        states_for_group: List[RegisterState] = []
 
         for reg, reading in items:
             counts[reading.state] += 1
@@ -122,7 +135,8 @@ def build_group_summary(registers: Dict[str, RegisterReading]) -> Dict[str, Grou
         )
     return summary
 
-def build_payload(line_id: str, runtime: dict, register_values: Dict[str, int]) -> PlcPayload:
+
+def build_payload(line_id: str, runtime: dict, register_values: Dict[str, float]) -> PlcPayload:
     register_readings = build_register_readings(register_values, runtime["register_specs"])
     group_summary = build_group_summary(register_readings)
     return PlcPayload(

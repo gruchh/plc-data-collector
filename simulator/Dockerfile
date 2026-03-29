@@ -12,4 +12,4 @@ ENV KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 ENV LINE_ID=A1
 ENV KAFKA_TOPIC=plc.data.raw
 
-CMD["python", "main.py"]
+CMD ["python", "main.py"]

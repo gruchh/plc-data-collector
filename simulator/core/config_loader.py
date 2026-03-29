@@ -28,18 +28,22 @@ def build_runtime_config(config: dict, line_id: str, env_topic: str = None) -> d
         for idx in range(group_cfg["from"], group_cfg["to"] + 1):
             reg = f"D{idx}"
             thresholds = Thresholds(
-                low_low=int(group_cfg["low_low"]),
-                low=int(group_cfg["low"]),
-                high=int(group_cfg["high"]),
-                high_high=int(group_cfg["high_high"]),
+                low_low=float(group_cfg["low_low"]),
+                low=float(group_cfg["low"]),
+                high=float(group_cfg["high"]),
+                high_high=float(group_cfg["high_high"]),
             )
             register_specs[reg] = RegisterSpec(
                 register=reg,
                 group=group_name,
-                normal_min=int(group_cfg["normal_min"]),
-                normal_max=int(group_cfg["normal_max"]),
-                max_step=max(1, int(round(group_cfg["max_step"] * profile_cfg.get("step_multiplier", 1.0)))),
-                anomaly_probability=float(group_cfg["anomaly_probability"]) * float(profile_cfg.get("anomaly_multiplier", 1.0)),
+                normal_min=float(group_cfg["normal_min"]),
+                normal_max=float(group_cfg["normal_max"]),
+                max_step=max(0.01, round(
+                    group_cfg["max_step"] * profile_cfg.get("step_multiplier", 1.0), 4
+                )),
+                anomaly_probability=float(group_cfg["anomaly_probability"]) * float(
+                    profile_cfg.get("anomaly_multiplier", 1.0)
+                ),
                 thresholds=thresholds,
             )
 

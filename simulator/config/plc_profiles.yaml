@@ -7,8 +7,8 @@ defaults:
   key_by_line: true
   groups:
     Temperature:
-      from: 100
-      to: 105
+      from: 1
+      to: 20
       normal_min: 40
       normal_max: 60
       max_step: 2
@@ -18,14 +18,94 @@ defaults:
       high: 70
       high_high: 85
 
+    Current:
+      from: 21
+      to: 40
+      normal_min: 8.0
+      normal_max: 14.0
+      max_step: 0.5
+      anomaly_probability: 0.03
+      low_low: 2.0
+      low: 5.0
+      high: 16.0
+      high_high: 20.0
+
+    Pressure:
+      from: 41
+      to: 60
+      normal_min: 2.5
+      normal_max: 4.5
+      max_step: 0.2
+      anomaly_probability: 0.04
+      low_low: 1.0
+      low: 2.0
+      high: 5.0
+      high_high: 6.5
+
+    Vibration:
+      from: 61
+      to: 80
+      normal_min: 0.0
+      normal_max: 3.5
+      max_step: 0.5
+      anomaly_probability: 0.08
+      low_low: 0.0
+      low: 0.5
+      high: 5.0
+      high_high: 8.0
+
+    Speed:
+      from: 81
+      to: 100
+      normal_min: 800
+      normal_max: 1500
+      max_step: 50
+      anomaly_probability: 0.04
+      low_low: 200
+      low: 500
+      high: 1800
+      high_high: 2200
+
 line_profiles:
   standard_profile:
-    send_interval_ms: 2000
+    send_interval_ms: 21000
     step_multiplier: 1.0
     anomaly_multiplier: 1.0
+  intensive_profile:
+    send_interval_ms: 1000
+    step_multiplier: 2.5
+    anomaly_multiplier: 2.0
+  slow_profile:
+    send_interval_ms: 1000
+    step_multiplier: 0.5
+    anomaly_multiplier: 0.8
+  stress_profile:
+    send_interval_ms: 1000
+    step_multiplier: 4.0
+    anomaly_multiplier: 5.0
+  night_profile:
+    send_interval_ms: 1000
+    step_multiplier: 0.3
+    anomaly_multiplier: 0.5
 
 lines:
   A1:
     profile: standard_profile
     plc_name: MITSUBISHI_SIM_A1
     seed: 42
+  A2:
+    profile: standard_profile
+    plc_name: MITSUBISHI_SIM_A2
+    seed: 44
+  A3:
+    profile: intensive_profile
+    plc_name: MITSUBISHI_SIM_A3
+    seed: 41
+  A4:
+    profile: slow_profile
+    plc_name: MITSUBISHI_SIM_A4
+    seed: 37
+  A5:
+    profile: stress_profile
+    plc_name: MITSUBISHI_SIM_A5
+    seed: 49

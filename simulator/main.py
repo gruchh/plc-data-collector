@@ -34,7 +34,6 @@ signal.signal(signal.SIGTERM, handle_shutdown)
 signal.signal(signal.SIGINT, handle_shutdown)
 
 def load_runtime() -> dict:
-    """Wczytuje i buduje konfigurację runtime. Rzuca wyjątek przy błędzie."""
     config = load_config(CONFIG_PATH)
     return build_runtime_config(config, LINE_ID, KAFKA_TOPIC)
 
