@@ -1,0 +1,31 @@
+defaults:
+  topic: plc.data.raw
+  send_interval_ms: 1000
+  device_type: "Mitsubishi PLC Simulator"
+  include_group_summary: true
+  include_register_details: true
+  key_by_line: true
+  groups:
+    Temperature:
+      from: 100
+      to: 105
+      normal_min: 40
+      normal_max: 60
+      max_step: 2
+      anomaly_probability: 0.05
+      low_low: 20
+      low: 30
+      high: 70
+      high_high: 85
+
+line_profiles:
+  standard_profile:
+    send_interval_ms: 2000
+    step_multiplier: 1.0
+    anomaly_multiplier: 1.0
+
+lines:
+  A1:
+    profile: standard_profile
+    plc_name: MITSUBISHI_SIM_A1
+    seed: 42
