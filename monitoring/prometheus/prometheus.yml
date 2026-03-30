@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # Spring Boot backend — JVM, HTTP latency, Kafka consumer metrics (via Micrometer)
+  - job_name: "plc-backend"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:8080"]
+    scrape_interval: 10s
+
+  # Kafka Exporter — broker-level metrics: consumer lag, topic offsets, partitions
+  - job_name: "kafka"
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+    scrape_interval: 15s
