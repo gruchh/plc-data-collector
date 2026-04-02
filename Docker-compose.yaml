@@ -10,8 +10,8 @@ volumes:
 
 services:
   kafka:
-    image: apache/kafka:4.0.2
-    container_name: kafka-broker
+    image: apache/kafka:3.9.0
+    container_name: kafka
     ports:
       - "9092:9092"
     healthcheck:
@@ -41,7 +41,8 @@ services:
       LINE_ID: A1
       KAFKA_TOPIC: plc.data.raw
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     networks:
       - plc-network
 
@@ -52,7 +53,44 @@ services:
       LINE_ID: A2
       KAFKA_TOPIC: plc.data.raw
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+    networks:
+      - plc-network
+      
+  simulator-a3:
+    build: ./simulator
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LINE_ID: A3
+      KAFKA_TOPIC: plc.data.raw
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - plc-network
+
+  simulator-a4:
+    build: ./simulator
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LINE_ID: A4
+      KAFKA_TOPIC: plc.data.raw
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - plc-network
+      
+  simulator-a5:
+    build: ./simulator
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LINE_ID: A5
+      KAFKA_TOPIC: plc.data.raw
+    depends_on:
+      kafka:
+        condition: service_healthy
     networks:
       - plc-network
 

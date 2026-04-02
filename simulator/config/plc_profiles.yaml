@@ -68,23 +68,18 @@ defaults:
 
 line_profiles:
   standard_profile:
-    send_interval_ms: 21000
     step_multiplier: 1.0
     anomaly_multiplier: 1.0
   intensive_profile:
-    send_interval_ms: 1000
     step_multiplier: 2.5
     anomaly_multiplier: 2.0
   slow_profile:
-    send_interval_ms: 1000
     step_multiplier: 0.5
     anomaly_multiplier: 0.8
   stress_profile:
-    send_interval_ms: 1000
     step_multiplier: 4.0
     anomaly_multiplier: 5.0
   night_profile:
-    send_interval_ms: 1000
     step_multiplier: 0.3
     anomaly_multiplier: 0.5
 

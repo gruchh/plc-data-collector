@@ -12,8 +12,9 @@ This repository is structured as a monorepo containing all components of the sys
 * **`/backend` (Spring Boot)**: Core Java service acting as a Kafka consumer — processes incoming telemetry and exposes real-time APIs for the frontend.
 * **`/frontend` (Angular)**: User interface for monitoring multiple production lines — real-time charts, active alarms, and group summaries.
 * **Kafka Broker**: High-throughput message broker (KRaft mode — no Zookeeper) connecting simulators and the backend.
-* **Prometheus**: Metrics scraping and time-series storage for backend and infrastructure observability.
-* **Grafana**: Visualization layer for Prometheus metrics — dashboards, alerting, and historical trends.
+* **Telegraf**: Metrics collection agent — consumes data from Kafka and forwards it to InfluxDB.
+* **InfluxDB**: Time-series database for storing telemetry metrics and infrastructure observability data.
+* **Grafana**: Visualization layer for InfluxDB metrics — dashboards, alerting, and historical trends.
 
 ---
 
@@ -22,12 +23,13 @@ This repository is structured as a monorepo containing all components of the sys
 | Layer | Technology |
 |---|---|
 | Simulator | Python 3 |
-| Message Broker | Apache Kafka (KRaft mode) |
+| Message Broker | Apache Kafka 4.0.2 (KRaft mode) |
 | Backend | Java 21, Spring Boot |
 | Frontend | Angular, TypeScript |
-| Database | PostgreSQL |
-| Metrics | Prometheus |
-| Dashboards | Grafana |
+| Database | PostgreSQL 17 |
+| Metrics Collector | Telegraf 1.36 |
+| Time-Series DB | InfluxDB 2.7 |
+| Dashboards | Grafana 12.4 |
 | Infrastructure | Docker, Docker Compose |
 
 ---
@@ -172,20 +174,32 @@ The simulator can run in different operating modes, configured per instance:
 
 ---
 
-## 📊 Observability — Prometheus & Grafana
+## 📊 Observability — Telegraf, InfluxDB & Grafana
 
-### Prometheus
-Prometheus scrapes metrics from the Spring Boot backend (via the `/actuator/prometheus` endpoint) and from Kafka.
+Telemetry flows from Kafka through Telegraf into InfluxDB, where Grafana provides dashboards and alerting.
 
-- **URL:** [http://localhost:9090](http://localhost:9090)
-- Config file: `./monitoring/prometheus/prometheus.yml`
+```
+Kafka (plc.data.raw) ──► Telegraf ──► InfluxDB ──► Grafana
+```
+
+### Telegraf
+Telegraf acts as the metrics collection agent. It consumes messages directly from the `plc.data.raw` Kafka topic and writes them to InfluxDB.
+
+- Config file: `./monitoring/telegraf/telegraf.conf`
+- Waits for both Kafka (healthy) and InfluxDB (started) before launching.
+
+### InfluxDB
+InfluxDB stores all time-series telemetry data. It is auto-initialised on first start using environment variables from `.env`.
+
+- **URL:** [http://localhost:8086](http://localhost:8086)
+- Config: `INFLUXDB_*` variables in `.env`
 
 ### Grafana
-Grafana provides pre-built dashboards for system and application metrics.
+Grafana provides pre-built dashboards backed by InfluxDB as a datasource.
 
 - **URL:** [http://localhost:3000](http://localhost:3000)
-- Default credentials: `admin` / `admin`
-- Datasource: Prometheus (auto-provisioned)
+- Default credentials: configured via `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` in `.env`
+- Datasource: InfluxDB (configure manually or via provisioning)
 - Dashboard provisioning directory: `./monitoring/grafana/provisioning/`
 
 ---
@@ -195,13 +209,39 @@ Grafana provides pre-built dashboards for system and application metrics.
 ### Prerequisites
 Make sure you have [Docker](https://www.docker.com/) and Docker Compose installed.
 
+### Environment variables
+Copy the example file and fill in your values before starting:
+
+```bash
+cp .env.example .env
+```
+
+Required variables:
+
+| Variable | Description |
+|---|---|
+| `POSTGRES_DB` | PostgreSQL database name |
+| `POSTGRES_USER` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `INFLUXDB_USERNAME` | InfluxDB admin username |
+| `INFLUXDB_PASSWORD` | InfluxDB admin password |
+| `INFLUXDB_ORG` | InfluxDB organisation name |
+| `INFLUXDB_BUCKET` | InfluxDB bucket name |
+| `INFLUXDB_ADMIN_TOKEN` | InfluxDB admin token (used by Telegraf & Grafana) |
+| `GRAFANA_ADMIN_USER` | Grafana admin username |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana admin password |
+
 ### Running the entire stack
 ```bash
 # 1. Clone the repository
 git clone https://github.com/gruchh/plc-data-collector.git
 cd plc-data-collector
 
-# 2. Start all services (including monitoring)
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your values
+
+# 3. Start all services
 docker compose up -d
 ```
 
@@ -211,7 +251,7 @@ docker compose up -d
 |---|---|
 | Frontend | http://localhost:4200 |
 | Backend API | http://localhost:8080 |
-| Prometheus | http://localhost:9090 |
+| InfluxDB | http://localhost:8086 |
 | Grafana | http://localhost:3000 |
 | Kafka | localhost:9092 |
 | PostgreSQL | localhost:5432 |
