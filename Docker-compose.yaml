@@ -5,13 +5,20 @@ networks:
 volumes:
   kafka_data:
   postgres_data:
+  grafana_data:
+  influxdb_data:
 
 services:
   kafka:
-    image: apache/kafka:latest
+    image: apache/kafka:4.0.2
     container_name: kafka-broker
     ports:
       - "9092:9092"
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -21,193 +28,121 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
       - plc-network
-    healthcheck:
-      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:latest
-    container_name: kafka-exporter
-    command:
-      - "--kafka.server=kafka:9092"
-      - "--web.listen-address=:9308"
-    ports:
-      - "9308:9308"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - plc-network
-    restart: unless-stopped
 
   simulator-a1:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: simulator-line-a1
+    build: ./simulator
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       LINE_ID: A1
       KAFKA_TOPIC: plc.data.raw
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
     networks:
       - plc-network
 
   simulator-a2:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: simulator-line-a2
+    build: ./simulator
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       LINE_ID: A2
       KAFKA_TOPIC: plc.data.raw
     depends_on:
-      kafka:
-        condition: service_healthy
+      - kafka
     networks:
       - plc-network
 
-  simulator-a3:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: simulator-line-a3
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      LINE_ID: A3
-      KAFKA_TOPIC: plc.data.raw
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - plc-network
-
-  simulator-a4:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: simulator-line-a4
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      LINE_ID: A4
-      KAFKA_TOPIC: plc.data.raw
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - plc-network
-
-  simulator-a5:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: simulator-line-a5
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      LINE_ID: A5
-      KAFKA_TOPIC: plc.data.raw
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - plc-network
-      
   postgres:
-    image: postgres:18
+    image: postgres:17
+    container_name: postgres_17
     environment:
-      POSTGRES_DB: plc_data
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     networks:
       - plc-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d plc_data"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      
+
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
     container_name: backend-api
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/plc_data
-      SPRING_DATASOURCE_USERNAME: postgres # Polecam dodać jawnie
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy # Zmieniono na "healthy"
+      - kafka
+      - postgres
     networks:
       - plc-network
-      
+
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
     container_name: frontend-ui
     ports:
       - "4200:80"
     environment:
-      API_URL: http://backend:8080 
+      API_URL: http://backend:8080
     depends_on:
       - backend
     networks:
       - plc-network
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
     ports:
-      - "9090:9090"
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
-    depends_on:
-      - backend
-      - kafka-exporter
+      - influxdb_data:/var/lib/influxdb2
     networks:
       - plc-network
-    restart: unless-stopped
-  
+
+  telegraf:
+    image: telegraf:1.36
+    container_name: telegraf
+    environment:
+      INFLUXDB_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+    volumes:
+      - ./monitoring/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      influxdb:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    networks:
+      - plc-network
+
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.4
     container_name: grafana
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      - prometheus
+      - influxdb
     networks:
       - plc-network
