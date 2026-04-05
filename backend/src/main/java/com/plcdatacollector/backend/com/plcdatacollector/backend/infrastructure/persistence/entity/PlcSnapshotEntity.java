@@ -1,6 +1,5 @@
 package com.plcdatacollector.backend.infrastructure.persistence.entity;
 
-
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -44,8 +43,22 @@ public class PlcSnapshotEntity {
     private String overallSeverity;
 
     @OneToMany(mappedBy = "snapshot", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<RegisterReadingEntity> registers = new ArrayList<>();
-
-    @OneToMany(mappedBy = "snapshot", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GroupSummaryEntity> groupSummaries = new ArrayList<>();
+
+    public void addGroupSummary(GroupSummaryEntity summary) {
+        groupSummaries.add(summary);
+        summary.setSnapshot(this);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PlcSnapshotEntity other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

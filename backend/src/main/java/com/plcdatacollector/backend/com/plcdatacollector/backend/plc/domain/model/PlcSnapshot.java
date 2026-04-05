@@ -1,10 +1,17 @@
 package com.plcdatacollector.backend.plc.domain.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.List;
 
-
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PlcSnapshot {
 
     private String line;
@@ -17,6 +24,5 @@ public class PlcSnapshot {
     private boolean hasSuspicious;
     private String overallSeverity;
 
-    private List<RegisterReading> registers;
     private List<GroupSummary> groupSummaries;
 }
