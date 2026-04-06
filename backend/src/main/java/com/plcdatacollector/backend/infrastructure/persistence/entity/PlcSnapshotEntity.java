@@ -45,20 +45,10 @@ public class PlcSnapshotEntity {
     @OneToMany(mappedBy = "snapshot", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GroupSummaryEntity> groupSummaries = new ArrayList<>();
 
+    private double avgSpeedRpm;
+
     public void addGroupSummary(GroupSummaryEntity summary) {
         groupSummaries.add(summary);
         summary.setSnapshot(this);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PlcSnapshotEntity other)) return false;
-        return id != null && id.equals(other.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return getClass().hashCode();
     }
 }

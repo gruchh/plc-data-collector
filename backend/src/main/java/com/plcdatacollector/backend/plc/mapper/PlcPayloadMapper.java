@@ -11,7 +11,7 @@ import org.mapstruct.Mapping;
 import java.util.List;
 import java.util.Map;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", imports = java.time.Instant.class)
 public interface PlcPayloadMapper {
 
     @Mapping(target = "timestamp",       expression = "java(Instant.parse(dto.timestamp()))")
@@ -19,6 +19,7 @@ public interface PlcPayloadMapper {
     @Mapping(target = "hasSuspicious",   expression = "java(hasAnySuspicious(dto))")
     @Mapping(target = "overallSeverity", expression = "java(resolveOverallSeverity(dto))")
     @Mapping(target = "groupSummaries",  expression = "java(mapGroupSummaries(dto.groupSummary()))")
+    @Mapping(target = "avgSpeedRpm",     expression = "java(calculateAvgSpeed(dto))")
     PlcSnapshot toSnapshot(PlcPayloadDto dto);
 
     @Mapping(target = "groupName",     source = "key")
@@ -49,6 +50,15 @@ public interface PlcPayloadMapper {
         boolean hasWarning = dto.registers().values().stream()
                 .anyMatch(r -> "WARNING".equals(r.severity()));
         return hasWarning ? "WARNING" : "INFO";
+    }
+
+    default double calculateAvgSpeed(PlcPayloadDto dto) {
+        if (dto.registers() == null) return 0.0;
+        return dto.registers().values().stream()
+                .filter(r -> "Speed".equals(r.group()))
+                .mapToInt(RegisterReadingDto::value)
+                .average()
+                .orElse(0.0);
     }
 
     default List<GroupSummary> mapGroupSummaries(Map<String, GroupSummaryDto> groups) {

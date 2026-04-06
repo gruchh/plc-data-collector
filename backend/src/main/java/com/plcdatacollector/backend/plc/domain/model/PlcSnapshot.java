@@ -19,10 +19,9 @@ public class PlcSnapshot {
     private String deviceType;
     private String profile;
     private Instant timestamp;
-
     private boolean hasAlarm;
     private boolean hasSuspicious;
     private String overallSeverity;
-
     private List<GroupSummary> groupSummaries;
+    private double avgSpeedRpm;
 }
